@@ -13,6 +13,7 @@ require('dotenv').config();
 
 const supabase = require('./supabaseClient');
 const trendingAnalytics = require('./trendingAnalytics');
+const { initTelegramBot } = require('./telegramBot');
 
 // Initialize Express app
 const app = express();
@@ -682,6 +683,14 @@ server.listen(PORT, async () => {
   // Initialize trending analytics from database
   await trendingAnalytics.initializeFromDatabase();
   console.log(`[Server] Trending analytics initialized`);
+
+  // Initialize Telegram bot
+  const telegramBot = initTelegramBot();
+  if (telegramBot.enabled) {
+    console.log(`[Server] 🤖 Telegram bot enabled and ready`);
+  } else {
+    console.log(`[Server] ℹ️  Telegram bot disabled (no token configured)`);
+  }
 });
 
 // Graceful shutdown

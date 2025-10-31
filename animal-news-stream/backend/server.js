@@ -12,6 +12,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const supabase = require('./supabaseClient');
+const trendingAnalytics = require('./trendingAnalytics');
 
 // Initialize Express app
 const app = express();
@@ -21,6 +22,7 @@ const wss = new WebSocket.Server({ server });
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static('animal-news-stream/backend/public'));
 
 // Store connected clients with their subscriptions
 const clients = new Map();
@@ -101,6 +103,26 @@ async function handleClientMessage(clientId, data, ws) {
 
     case 'search_articles':
       await handleSearchArticles(payload, ws);
+      break;
+
+    case 'get_trending':
+      handleGetTrending(payload, ws);
+      break;
+
+    case 'get_word_cloud':
+      handleGetWordCloud(payload, ws);
+      break;
+
+    case 'get_category_trends':
+      handleGetCategoryTrends(ws);
+      break;
+
+    case 'get_dashboard':
+      handleGetDashboard(ws);
+      break;
+
+    case 'record_view':
+      handleRecordView(payload, ws);
       break;
 
     default:
@@ -227,6 +249,138 @@ async function handleSearchArticles(payload, ws) {
 }
 
 /**
+ * Get trending articles
+ */
+function handleGetTrending(payload, ws) {
+  try {
+    const { limit = 10 } = payload || {};
+    const trending = trendingAnalytics.getTopTrending(limit);
+
+    ws.send(JSON.stringify({
+      type: 'trending',
+      data: trending,
+      count: trending.length,
+      timestamp: new Date().toISOString()
+    }));
+  } catch (error) {
+    console.error('[WebSocket] Error getting trending:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to get trending articles',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }));
+  }
+}
+
+/**
+ * Get word cloud data
+ */
+function handleGetWordCloud(payload, ws) {
+  try {
+    const { limit = 50 } = payload || {};
+    const wordCloud = trendingAnalytics.getWordCloud(limit);
+
+    ws.send(JSON.stringify({
+      type: 'word_cloud',
+      data: wordCloud,
+      count: wordCloud.length,
+      timestamp: new Date().toISOString()
+    }));
+  } catch (error) {
+    console.error('[WebSocket] Error getting word cloud:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to get word cloud',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }));
+  }
+}
+
+/**
+ * Get category trends
+ */
+function handleGetCategoryTrends(ws) {
+  try {
+    const trends = trendingAnalytics.getCategoryTrends();
+
+    ws.send(JSON.stringify({
+      type: 'category_trends',
+      data: trends,
+      count: trends.length,
+      timestamp: new Date().toISOString()
+    }));
+  } catch (error) {
+    console.error('[WebSocket] Error getting category trends:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to get category trends',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }));
+  }
+}
+
+/**
+ * Get complete dashboard data
+ */
+function handleGetDashboard(ws) {
+  try {
+    const dashboard = trendingAnalytics.getDashboardData();
+
+    ws.send(JSON.stringify({
+      type: 'dashboard',
+      data: dashboard,
+      timestamp: new Date().toISOString()
+    }));
+  } catch (error) {
+    console.error('[WebSocket] Error getting dashboard:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to get dashboard data',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }));
+  }
+}
+
+/**
+ * Record article view
+ */
+function handleRecordView(payload, ws) {
+  try {
+    const { articleId } = payload;
+
+    if (!articleId) {
+      throw new Error('articleId is required');
+    }
+
+    trendingAnalytics.recordView(articleId);
+
+    ws.send(JSON.stringify({
+      type: 'view_recorded',
+      articleId,
+      timestamp: new Date().toISOString()
+    }));
+
+    // Broadcast updated trending to all subscribed clients
+    broadcast('trending', {
+      type: 'trending_updated',
+      data: trendingAnalytics.getTopTrending(10)
+    });
+  } catch (error) {
+    console.error('[WebSocket] Error recording view:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to record view',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }));
+  }
+}
+
+/**
  * Broadcast message to all clients subscribed to a channel
  */
 function broadcast(channel, message) {
@@ -248,9 +402,20 @@ const articlesChannel = supabase
     { event: 'INSERT', schema: 'public', table: 'articles' },
     (payload) => {
       console.log('[Supabase] New article inserted:', payload.new.title);
+
+      // Track in trending analytics
+      trendingAnalytics.trackArticle(payload.new);
+
+      // Broadcast to article subscribers
       broadcast('articles', {
         type: 'article_added',
         data: payload.new
+      });
+
+      // Broadcast updated trending
+      broadcast('trending', {
+        type: 'trending_updated',
+        data: trendingAnalytics.getTopTrending(10)
       });
     }
   )
@@ -399,12 +564,124 @@ app.get('/api/ws/status', (req, res) => {
   });
 });
 
+// Trending Analytics Endpoints
+
+// Get top trending articles
+app.get('/api/trending', (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    const trending = trendingAnalytics.getTopTrending(parseInt(limit));
+
+    res.json({
+      data: trending,
+      count: trending.length
+    });
+  } catch (error) {
+    console.error('[API] Error getting trending:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get word cloud data
+app.get('/api/trending/word-cloud', (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const wordCloud = trendingAnalytics.getWordCloud(parseInt(limit));
+
+    res.json({
+      data: wordCloud,
+      count: wordCloud.length
+    });
+  } catch (error) {
+    console.error('[API] Error getting word cloud:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get category trends
+app.get('/api/trending/categories', (req, res) => {
+  try {
+    const trends = trendingAnalytics.getCategoryTrends();
+
+    res.json({
+      data: trends,
+      count: trends.length
+    });
+  } catch (error) {
+    console.error('[API] Error getting category trends:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get viral velocity
+app.get('/api/trending/velocity', (req, res) => {
+  try {
+    const velocity = trendingAnalytics.calculateViralVelocity();
+
+    res.json({ data: velocity });
+  } catch (error) {
+    console.error('[API] Error getting viral velocity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get complete trending dashboard
+app.get('/api/trending/dashboard', (req, res) => {
+  try {
+    const dashboard = trendingAnalytics.getDashboardData();
+
+    res.json({ data: dashboard });
+  } catch (error) {
+    console.error('[API] Error getting dashboard:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get trending stats
+app.get('/api/trending/stats', (req, res) => {
+  try {
+    const stats = trendingAnalytics.getStats();
+
+    res.json({ data: stats });
+  } catch (error) {
+    console.error('[API] Error getting stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Record article view
+app.post('/api/articles/:id/view', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    trendingAnalytics.recordView(id);
+
+    // Broadcast updated trending
+    broadcast('trending', {
+      type: 'trending_updated',
+      data: trendingAnalytics.getTopTrending(10)
+    });
+
+    res.json({
+      message: 'View recorded',
+      articleId: id
+    });
+  } catch (error) {
+    console.error('[API] Error recording view:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start server
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`[Server] HTTP + WebSocket server running on port ${PORT}`);
   console.log(`[Server] WebSocket endpoint: ws://localhost:${PORT}`);
   console.log(`[Server] HTTP API endpoint: http://localhost:${PORT}`);
+
+  // Initialize trending analytics from database
+  await trendingAnalytics.initializeFromDatabase();
+  console.log(`[Server] Trending analytics initialized`);
 });
 
 // Graceful shutdown

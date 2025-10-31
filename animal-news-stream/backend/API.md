@@ -192,10 +192,210 @@ Get information about active WebSocket connections.
   "clients": [
     {
       "id": 1698765432123,
-      "subscriptions": ["articles"],
+      "subscriptions": ["articles", "trending"],
       "connected": true
     }
   ]
+}
+```
+
+---
+
+## Trending Analytics Endpoints
+
+### 7. Get Top Trending Articles
+
+Get the top trending articles based on real-time analytics.
+
+**Endpoint:** `GET /api/trending`
+
+**Query Parameters:**
+- `limit` (optional): Number of results (default: 10)
+
+**Example:**
+```bash
+curl "http://localhost:3001/api/trending?limit=5"
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "title": "Amazing Animal Discovery",
+      "category": "wildlife",
+      "score": 245,
+      "velocity": "12.50",
+      "views": 150,
+      "isHot": true,
+      "age": 180
+    }
+  ],
+  "count": 5
+}
+```
+
+---
+
+### 8. Get Word Cloud Data
+
+Get trending word frequencies for visualization.
+
+**Endpoint:** `GET /api/trending/word-cloud`
+
+**Query Parameters:**
+- `limit` (optional): Number of words (default: 50)
+
+**Example:**
+```bash
+curl "http://localhost:3001/api/trending/word-cloud?limit=20"
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "word": "dolphin",
+      "frequency": 45,
+      "size": 9
+    },
+    {
+      "word": "rescue",
+      "frequency": 32,
+      "size": 7
+    }
+  ],
+  "count": 20
+}
+```
+
+---
+
+### 9. Get Category Trends
+
+Get trending statistics by category.
+
+**Endpoint:** `GET /api/trending/categories`
+
+**Example:**
+```bash
+curl http://localhost:3001/api/trending/categories
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "category": "wildlife",
+      "count": 45,
+      "velocity": "2.50",
+      "isHot": true,
+      "lastUpdate": 1698765432000
+    }
+  ],
+  "count": 5
+}
+```
+
+---
+
+### 10. Get Viral Velocity
+
+Get the current viral velocity (articles per minute).
+
+**Endpoint:** `GET /api/trending/velocity`
+
+**Example:**
+```bash
+curl http://localhost:3001/api/trending/velocity
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "articlesPerMinute": 5.25,
+    "recentCount": 315,
+    "windowMinutes": 60,
+    "isViral": false,
+    "timestamp": 1698765432000
+  }
+}
+```
+
+---
+
+### 11. Get Complete Dashboard Data
+
+Get all trending data in one request.
+
+**Endpoint:** `GET /api/trending/dashboard`
+
+**Example:**
+```bash
+curl http://localhost:3001/api/trending/dashboard
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "topTrending": [...],
+    "wordCloud": [...],
+    "categoryTrends": [...],
+    "viralVelocity": {...},
+    "totalArticles": 1250,
+    "timestamp": 1698765432000
+  }
+}
+```
+
+---
+
+### 12. Get Trending Stats
+
+Get analytics engine statistics.
+
+**Endpoint:** `GET /api/trending/stats`
+
+**Example:**
+```bash
+curl http://localhost:3001/api/trending/stats
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "trackedArticles": 1250,
+    "categories": 8,
+    "uniqueWords": 5432,
+    "recentActivity": 315
+  }
+}
+```
+
+---
+
+### 13. Record Article View
+
+Record a view for trending analytics.
+
+**Endpoint:** `POST /api/articles/:id/view`
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/api/articles/123e4567-e89b-12d3-a456-426614174000/view
+```
+
+**Response:**
+```json
+{
+  "message": "View recorded",
+  "articleId": "123e4567-e89b-12d3-a456-426614174000"
 }
 ```
 
@@ -338,6 +538,130 @@ Keep the connection alive.
 
 ---
 
+#### 6. Get Trending Articles
+
+Request top trending articles via WebSocket.
+
+```json
+{
+  "type": "get_trending",
+  "payload": {
+    "limit": 10
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "trending",
+  "data": [...],
+  "count": 10,
+  "timestamp": "2025-10-31T22:00:00.000Z"
+}
+```
+
+---
+
+#### 7. Get Word Cloud
+
+Request word cloud data.
+
+```json
+{
+  "type": "get_word_cloud",
+  "payload": {
+    "limit": 50
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "word_cloud",
+  "data": [...],
+  "count": 50,
+  "timestamp": "2025-10-31T22:00:00.000Z"
+}
+```
+
+---
+
+#### 8. Get Category Trends
+
+Request category trends.
+
+```json
+{
+  "type": "get_category_trends"
+}
+```
+
+**Response:**
+```json
+{
+  "type": "category_trends",
+  "data": [...],
+  "count": 5,
+  "timestamp": "2025-10-31T22:00:00.000Z"
+}
+```
+
+---
+
+#### 9. Get Complete Dashboard
+
+Request all trending data.
+
+```json
+{
+  "type": "get_dashboard"
+}
+```
+
+**Response:**
+```json
+{
+  "type": "dashboard",
+  "data": {
+    "topTrending": [...],
+    "wordCloud": [...],
+    "categoryTrends": [...],
+    "viralVelocity": {...},
+    "totalArticles": 1250,
+    "timestamp": 1698765432000
+  },
+  "timestamp": "2025-10-31T22:00:00.000Z"
+}
+```
+
+---
+
+#### 10. Record View
+
+Record an article view.
+
+```json
+{
+  "type": "record_view",
+  "payload": {
+    "articleId": "uuid"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "view_recorded",
+  "articleId": "uuid",
+  "timestamp": "2025-10-31T22:00:00.000Z"
+}
+```
+
+---
+
 ### Server → Client Messages
 
 #### 1. Connection Established
@@ -410,7 +734,22 @@ Broadcast when an article is deleted.
 
 ---
 
-#### 5. Error
+#### 5. Trending Updated (Real-time)
+
+Broadcast to subscribers when trending data changes.
+
+```json
+{
+  "type": "trending_updated",
+  "channel": "trending",
+  "data": [...],
+  "timestamp": "2025-10-31T22:00:00.000Z"
+}
+```
+
+---
+
+#### 6. Error
 
 Sent when an error occurs.
 
@@ -466,6 +805,24 @@ See `websocket-client-example.js` for a complete Node.js example.
 ## Available Channels
 
 - `articles` - Receive real-time updates for article changes (INSERT, UPDATE, DELETE)
+- `trending` - Receive real-time trending updates when articles gain traction
+
+---
+
+## Live Trending Dashboard
+
+Access the interactive trending dashboard at:
+
+**http://localhost:3001/trending-dashboard.html**
+
+Features:
+- 🔥 Top Trending Articles - Real-time top 10 with scores and velocity
+- ⚡ Viral Velocity - Articles per minute with "going viral" indicator
+- ☁️ Word Cloud - Trending words from article titles/descriptions
+- 📊 Category Trends - Which topics are hot right now
+- 📈 Real-time Stats - Total articles, words, categories, activity
+
+The dashboard updates automatically via WebSocket and refreshes every 30 seconds.
 
 ---
 

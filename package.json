@@ -1,12 +1,24 @@
 {
   "name": "animal-news-stream",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Real-time animal news aggregation platform with WebSocket API",
+  "main": "animal-news-stream/backend/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node animal-news-stream/backend/server.js",
+    "dev": "node animal-news-stream/backend/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "ws:example": "node animal-news-stream/backend/websocket-client-example.js"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.78.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "node-fetch": "^2.7.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "ws": "^8.18.3"
+  }
 }
